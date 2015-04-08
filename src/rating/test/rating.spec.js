@@ -1,5 +1,5 @@
 describe('rating directive', function () {
-  var $rootScope, element;
+  var $rootScope, $compile, element;
   beforeEach(module('ui.bootstrap.rating'));
   beforeEach(module('template/rating/rating.html'));
   beforeEach(inject(function(_$compile_, _$rootScope_) {
@@ -71,6 +71,20 @@ describe('rating directive', function () {
     element.trigger('mouseout');
     expect(getState()).toEqual([true, true, true, false, false]);
     expect($rootScope.rate).toBe(3);
+  });
+
+  it('rounds off the number of stars shown with decimal values', function() {
+    $rootScope.rate = 2.1;
+    $rootScope.$digest();
+
+    expect(getState()).toEqual([true, true, false, false, false]);
+    expect(element.attr('aria-valuenow')).toBe('2');
+
+    $rootScope.rate = 2.5;
+    $rootScope.$digest();
+
+    expect(getState()).toEqual([true, true, true, false, false]);
+    expect(element.attr('aria-valuenow')).toBe('3');
   });
 
   it('changes the number of selected icons when value changes', function() {
@@ -149,6 +163,17 @@ describe('rating directive', function () {
 
       triggerKeyDown(39);
       expect($rootScope.rate).toBe(3);
+    });
+
+    it('supports only arrow keys', function() {
+      $rootScope.rate = undefined;
+      $rootScope.$digest();
+
+      triggerKeyDown(36);
+      expect($rootScope.rate).toBe(undefined);
+
+      triggerKeyDown(41);
+      expect($rootScope.rate).toBe(undefined);
     });
 
     it('can get zero value but not negative', function() {

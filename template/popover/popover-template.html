@@ -1,0 +1,13 @@
+<div class="popover"
+  tooltip-placement-class
+  tooltip-animate-class="fade"
+  ng-class="{ in: isOpen() }">
+  <div class="arrow"></div>
+
+  <div class="popover-inner">
+      <h3 class="popover-title" ng-bind="title" ng-show="title"></h3>
+      <div class="popover-content"
+        tooltip-template-transclude="content"
+        tooltip-template-transclude-scope="originScope()"></div>
+  </div>
+</div>

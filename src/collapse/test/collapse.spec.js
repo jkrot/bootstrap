@@ -1,16 +1,15 @@
 describe('collapse directive', function () {
 
-  var scope, $compile, $timeout, $transition;
+  var scope, $compile, $animate;
+  var element;
 
   beforeEach(module('ui.bootstrap.collapse'));
-  beforeEach(inject(function(_$rootScope_, _$compile_, _$timeout_, _$transition_) {
+  beforeEach(module('ngAnimateMock'));
+  beforeEach(inject(function(_$rootScope_, _$compile_, _$animate_) {
     scope = _$rootScope_;
     $compile = _$compile_;
-    $timeout = _$timeout_;
-    $transition = _$transition_;
+    $animate = _$animate_;
   }));
-
-  var element;
 
   beforeEach(function() {
     element = $compile('<div collapse="isCollapsed">Some Content</div>')(scope);
@@ -24,6 +23,7 @@ describe('collapse directive', function () {
   it('should be hidden on initialization if isCollapsed = true without transition', function() {
     scope.isCollapsed = true;
     scope.$digest();
+    $animate.triggerCallbacks();
     //No animation timeout here
     expect(element.height()).toBe(0);
   });
@@ -33,7 +33,7 @@ describe('collapse directive', function () {
     scope.$digest();
     scope.isCollapsed = true;
     scope.$digest();
-    $timeout.flush();
+    $animate.triggerCallbacks();
     expect(element.height()).toBe(0);
   });
 
@@ -51,7 +51,7 @@ describe('collapse directive', function () {
     scope.$digest();
     scope.isCollapsed = false;
     scope.$digest();
-    $timeout.flush();
+    $animate.triggerCallbacks();
     expect(element.height()).not.toBe(0);
   });
 
@@ -64,15 +64,16 @@ describe('collapse directive', function () {
     scope.$digest();
     scope.isCollapsed = true;
     scope.$digest();
-    $timeout.flush();
+    $animate.triggerCallbacks();
     expect(element.height()).toBe(0);
-    if ($transition.transitionEndEventName) {
-      element.triggerHandler($transition.transitionEndEventName);
-      expect(element.height()).toBe(0);
-    }
+    $animate.triggerCallbacks();
+    expect(element.height()).toBe(0);
   });
 
   describe('dynamic content', function() {
+
+    var element;
+
     beforeEach(function() {
       element = angular.element('<div collapse="isCollapsed"><p>Initial content</p><div ng-show="exp">Additional content</div></div>');
       $compile(element)(scope);
@@ -87,6 +88,7 @@ describe('collapse directive', function () {
       scope.exp = false;
       scope.isCollapsed = false;
       scope.$digest();
+      $animate.triggerCallbacks();
       var collapseHeight = element.height();
       scope.exp = true;
       scope.$digest();
@@ -97,6 +99,7 @@ describe('collapse directive', function () {
       scope.exp = true;
       scope.isCollapsed = false;
       scope.$digest();
+      $animate.triggerCallbacks();
       var collapseHeight = element.height();
       scope.exp = false;
       scope.$digest();

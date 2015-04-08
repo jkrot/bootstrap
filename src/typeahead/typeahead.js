@@ -7,7 +7,7 @@ angular.module('ui.bootstrap.typeahead', ['ui.bootstrap.position', 'ui.bootstrap
   .factory('typeaheadParser', ['$parse', function ($parse) {
 
   //                      00000111000000000000022200000000000000003333333333333330000000000044000
-  var TYPEAHEAD_REGEXP = /^\s*(.*?)(?:\s+as\s+(.*?))?\s+for\s+(?:([\$\w][\$\w\d]*))\s+in\s+(.*)$/;
+  var TYPEAHEAD_REGEXP = /^\s*([\s\S]+?)(?:\s+as\s+([\s\S]+?))?\s+for\s+(?:([\$\w][\$\w\d]*))\s+in\s+([\s\S]+?)$/;
 
   return {
     parse:function (input) {
@@ -43,7 +43,7 @@ angular.module('ui.bootstrap.typeahead', ['ui.bootstrap.position', 'ui.bootstrap
       //minimal no of characters that needs to be entered before typeahead kicks-in
       var minSearch = originalScope.$eval(attrs.typeaheadMinLength) || 1;
 
-      //minimal wait time after last character typed before typehead kicks-in
+      //minimal wait time after last character typed before typeahead kicks-in
       var waitTime = originalScope.$eval(attrs.typeaheadWaitMs) || 0;
 
       //should it restrict model values to the ones selected from the popup only?
@@ -58,6 +58,8 @@ angular.module('ui.bootstrap.typeahead', ['ui.bootstrap.position', 'ui.bootstrap
       var inputFormatter = attrs.typeaheadInputFormatter ? $parse(attrs.typeaheadInputFormatter) : undefined;
 
       var appendToBody =  attrs.typeaheadAppendToBody ? originalScope.$eval(attrs.typeaheadAppendToBody) : false;
+
+      var focusFirst = originalScope.$eval(attrs.typeaheadFocusFirst) !== false;
 
       //INTERNAL VARIABLES
 
@@ -129,9 +131,9 @@ angular.module('ui.bootstrap.typeahead', ['ui.bootstrap.position', 'ui.bootstrap
           //but we are interested only in responses that correspond to the current view value
           var onCurrentRequest = (inputValue === modelCtrl.$viewValue);
           if (onCurrentRequest && hasFocus) {
-            if (matches.length > 0) {
+            if (matches && matches.length > 0) {
 
-              scope.activeIdx = 0;
+              scope.activeIdx = focusFirst ? 0 : -1;
               scope.matches.length = 0;
 
               //transform labels
@@ -170,8 +172,20 @@ angular.module('ui.bootstrap.typeahead', ['ui.bootstrap.position', 'ui.bootstrap
       //we need to propagate user's query so we can higlight matches
       scope.query = undefined;
 
-      //Declare the timeout promise var outside the function scope so that stacked calls can be cancelled later 
+      //Declare the timeout promise var outside the function scope so that stacked calls can be cancelled later
       var timeoutPromise;
+
+      var scheduleSearchWithTimeout = function(inputValue) {
+        timeoutPromise = $timeout(function () {
+          getMatchesAsync(inputValue);
+        }, waitTime);
+      };
+
+      var cancelPreviousTimeout = function() {
+        if (timeoutPromise) {
+          $timeout.cancel(timeoutPromise);
+        }
+      };
 
       //plug into $parsers pipeline to open a typeahead on view changes initiated from DOM
       //$parsers kick-in on all the changes coming from the view as well as manually triggered by $setViewValue
@@ -181,17 +195,14 @@ angular.module('ui.bootstrap.typeahead', ['ui.bootstrap.position', 'ui.bootstrap
 
         if (inputValue && inputValue.length >= minSearch) {
           if (waitTime > 0) {
-            if (timeoutPromise) {
-              $timeout.cancel(timeoutPromise);//cancel previous timeout
-            }
-            timeoutPromise = $timeout(function () {
-              getMatchesAsync(inputValue);
-            }, waitTime);
+            cancelPreviousTimeout();
+            scheduleSearchWithTimeout(inputValue);
           } else {
             getMatchesAsync(inputValue);
           }
         } else {
           isLoadingSetter(originalScope, false);
+          cancelPreviousTimeout();
           resetMatches();
         }
 
@@ -214,9 +225,16 @@ angular.module('ui.bootstrap.typeahead', ['ui.bootstrap.position', 'ui.bootstrap
         var candidateViewValue, emptyViewValue;
         var locals = {};
 
+        // The validity may be set to false via $parsers (see above) if
+        // the model is restricted to selected values. If the model
+        // is set manually it is considered to be valid.
+        if (!isEditable) {
+          modelCtrl.$setValidity('editable', true);
+        }
+
         if (inputFormatter) {
 
-          locals['$model'] = modelValue;
+          locals.$model = modelValue;
           return inputFormatter(originalScope, locals);
 
         } else {
@@ -241,6 +259,7 @@ angular.module('ui.bootstrap.typeahead', ['ui.bootstrap.position', 'ui.bootstrap
         model = parserResult.modelMapper(originalScope, locals);
         $setModelValue(originalScope, model);
         modelCtrl.$setValidity('editable', true);
+        modelCtrl.$setValidity('parse', true);
 
         onSelectCallback(originalScope, {
           $item: item,
@@ -263,6 +282,11 @@ angular.module('ui.bootstrap.typeahead', ['ui.bootstrap.position', 'ui.bootstrap
           return;
         }
 
+        // if there's nothing selected (i.e. focusFirst) and enter is hit, don't do anything
+        if (scope.activeIdx == -1 && (evt.which === 13 || evt.which === 9)) {
+          return;
+        }
+
         evt.preventDefault();
 
         if (evt.which === 40) {
@@ -270,7 +294,7 @@ angular.module('ui.bootstrap.typeahead', ['ui.bootstrap.position', 'ui.bootstrap
           scope.$digest();
 
         } else if (evt.which === 38) {
-          scope.activeIdx = (scope.activeIdx ? scope.activeIdx : scope.matches.length) - 1;
+          scope.activeIdx = (scope.activeIdx > 0 ? scope.activeIdx : scope.matches.length) - 1;
           scope.$digest();
 
         } else if (evt.which === 13 || evt.which === 9) {
@@ -302,10 +326,16 @@ angular.module('ui.bootstrap.typeahead', ['ui.bootstrap.position', 'ui.bootstrap
 
       originalScope.$on('$destroy', function(){
         $document.unbind('click', dismissClickHandler);
+        if (appendToBody) {
+          $popup.remove();
+        }
+        // Prevent jQuery cache memory leak
+        popUpEl.remove();
       });
 
       var $popup = $compile(popUpEl)(scope);
-      if ( appendToBody ) {
+
+      if (appendToBody) {
         $document.find('body').append($popup);
       } else {
         element.after($popup);
@@ -361,7 +391,9 @@ angular.module('ui.bootstrap.typeahead', ['ui.bootstrap.position', 'ui.bootstrap
       link:function (scope, element, attrs) {
         var tplUrl = $parse(attrs.templateUrl)(scope.$parent) || 'template/typeahead/typeahead-match.html';
         $http.get(tplUrl, {cache: $templateCache}).success(function(tplContent){
-           element.replaceWith($compile(tplContent.trim())(scope));
+            $compile(tplContent.trim())(scope, function(clonedElement){
+                element.replaceWith(clonedElement);
+            });
         });
       }
     };

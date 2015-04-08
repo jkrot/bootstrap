@@ -28,23 +28,31 @@ angular.module('ui.bootstrap.tabs', [])
     tabs.push(tab);
     // we can't run the select function on the first tab
     // since that would select it twice
-    if (tabs.length === 1) {
+    if (tabs.length === 1 && tab.active !== false) {
       tab.active = true;
     } else if (tab.active) {
       ctrl.select(tab);
+    }
+    else {
+      tab.active = false;
     }
   };
 
   ctrl.removeTab = function removeTab(tab) {
     var index = tabs.indexOf(tab);
-    //Select a new tab if the tab to be removed is selected
-    if (tab.active && tabs.length > 1) {
+    //Select a new tab if the tab to be removed is selected and not destroyed
+    if (tab.active && tabs.length > 1 && !destroyed) {
       //If this is the last tab, select the previous tab. else, the next tab.
       var newActiveIndex = index == tabs.length - 1 ? index - 1 : index + 1;
       ctrl.select(tabs[newActiveIndex]);
     }
     tabs.splice(index, 1);
   };
+
+  var destroyed;
+  $scope.$on('$destroy', function() {
+    destroyed = true;
+  });
 }])
 
 /**
@@ -174,7 +182,7 @@ angular.module('ui.bootstrap.tabs', [])
   </file>
 </example>
  */
-.directive('tab', ['$parse', function($parse) {
+.directive('tab', ['$parse', '$log', function($parse, $log) {
   return {
     require: '^tabset',
     restrict: 'EA',
@@ -200,7 +208,18 @@ angular.module('ui.bootstrap.tabs', [])
         });
 
         scope.disabled = false;
+        if ( attrs.disable ) {
+          scope.$parent.$watch($parse(attrs.disable), function(value) {
+            scope.disabled = !! value;
+          });
+        }
+
+        // Deprecation support of "disabled" parameter
+        // fix(tab): IE9 disabled attr renders grey text on enabled tab #2677
+        // This code is duplicated from the lines above to make it easy to remove once
+        // the feature has been completely deprecated
         if ( attrs.disabled ) {
+          $log.warn('Use of "disabled" attribute has been deprecated, please use "disable"');
           scope.$parent.$watch($parse(attrs.disabled), function(value) {
             scope.disabled = !! value;
           });

@@ -9,8 +9,17 @@ describe('modal window', function () {
     $compile = _$compile_;
   }));
 
+  it('should not use transclusion scope for modals content - issue 2110', function () {
+    $rootScope.animate = false;
+    $compile('<div modal-window animate="animate"><span ng-init="foo=true"></span></div>')($rootScope);
+    $rootScope.$digest();
+
+    expect($rootScope.foo).toBeTruthy();
+  });
+
   it('should support custom CSS classes as string', function () {
-    var windowEl = $compile('<div modal-window window-class="test foo">content</div>')($rootScope);
+    $rootScope.animate = false;
+    var windowEl = $compile('<div modal-window animate="animate" window-class="test foo">content</div>')($rootScope);
     $rootScope.$digest();
 
     expect(windowEl).toHaveClass('test');

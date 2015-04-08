@@ -1,15 +1,18 @@
 <!DOCTYPE html>
-<html lang="en" ng-app="bootstrapDemoApp" id="top">
+<html lang="en" ng-app="ui.bootstrap.demo" id="top">
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <link rel="icon" href="assets/favicon.ico" />
     <title>Angular directives for Bootstrap</title>
     <meta name="description" content="AngularJS (Angular) native directives for Bootstrap. Small footprint (5kB gzipped!), no 3rd party JS dependencies (jQuery, bootstrap JS) required! Widgets: <% demoModules.forEach(function(module) { %><%= module.displayName %>, <% }); %>">
     <meta name="google-site-verification" content="7lc5HyceLDqpV_6oNHteYFfxDJH7-S3DwnJKtNUKcRg" />
-
     <script src="//cdnjs.cloudflare.com/ajax/libs/fastclick/0.6.7/fastclick.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/FileSaver.js/1.0.0/FileSaver.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/jszip/2.4.0/jszip.min.js"></script>
     <script src="//ajax.googleapis.com/ajax/libs/angularjs/<%= ngversion %>/angular.min.js"></script>
+    <script src="//ajax.googleapis.com/ajax/libs/angularjs/<%= ngversion %>/angular-animate.min.js"></script>
     <script src="//ajax.googleapis.com/ajax/libs/angularjs/<%= ngversion %>/angular-touch.min.js"></script>
     <script src="ui-bootstrap-tpls-<%= pkg.version%>.min.js"></script>
     <script src="assets/plunker.js"></script>
@@ -38,8 +41,8 @@
                     <a href="#top" role="button" class="navbar-brand">
                         UI Bootstrap
                     </a>
-                    <li class="dropdown">
-                        <a role="button" class="dropdown-toggle">
+                    <li class="dropdown" dropdown>
+                        <a role="button" class="dropdown-toggle" dropdown-toggle>
                             Directives <b class="caret"></b>
                         </a>
                         <ul class="dropdown-menu">
@@ -169,6 +172,8 @@
                     <p>Original Bootstrap's CSS depends on empty <code>href</code> attributes to style cursors for several components (pagination, tabs etc.).
                     But in AngularJS adding empty <code>href</code> attributes to link tags will cause unwanted route changes. This is why we need to remove empty <code>href</code> attributes from directive templates and as a result styling is not applied correctly. The remedy is simple, just add the following styling to your application: <pre><code>.nav, .pagination, .carousel, .panel-title a { cursor: pointer; }</code></pre>
                     </p>
+                    <h3>FAQ</h3>
+                    <p>Please check <a href="https://github.com/angular-ui/bootstrap/wiki/FAQ" target="_blank">our FAQ section</a> for common problems / solutions.</p>
                 </section>
                 <% demoModules.forEach(function(module) { %>
                     <section id="<%= module.name %>">
@@ -271,10 +276,15 @@
       </h4>
     </div>
     <div class="modal-body">
+        <div ng-show="isOldBrowser()">
+            Your current browser doesn't support creating custom builds.
+            Please take a second to <a href="http://browsehappy.com/">upgrade to a
+            more modern browser</a> (other than Safari).
+        </div>
         <div ng-show="buildErrorText">
             <h4 style="text-align: center;">{{buildErrorText}}</h4>
         </div>
-        <div ng-hide="buildErrorText">
+        <div ng-hide="buildErrorText || isOldBrowser()">
             <% modules.forEach(function(module,i) { %>
               <% if (i % 3 === 0) {%>
                 <div class="btn-group" style="width: 100%;">
@@ -295,7 +305,9 @@
     </div>
     <div class="modal-footer">
         <a class="btn btn-default" ng-click="cancel()">Close</a>
-        <a class="btn btn-primary" ng-disabled="!selectedModules.length" ng-href="{{selectedModules.length ? download(selectedModules) : ''}}">
+        <a class="btn btn-primary" ng-hide="isOldBrowser()"
+            ng-disabled="isOldBrowser() !== false && !selectedModules.length"
+            ng-click="selectedModules.length && build(selectedModules, '<%= pkg.version %>')">
             <i class="glyphicon glyphicon-download-alt"></i> Download {{selectedModules.length}} Modules
         </a>
     </div>
@@ -315,5 +327,6 @@
 
 </script>
 <script src="assets/smoothscroll-angular-custom.js"></script>
+<script src="assets/uglifyjs.js"></script>
 </body>
 </html>
